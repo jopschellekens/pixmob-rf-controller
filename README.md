@@ -412,7 +412,7 @@ A: These require either capturing the RF signal from an official PixMob controll
 - **danielweidman/pixmob-ir-reverse-engineering** — Original Flipper Zero IR captures and 6b/8b encoding table
 - **jamesw343/PixMob_IR** — IR protocol documentation and color definitions
 - **jgromes/RadioLib** — CC1101 radio library for ESP32 firmware
-- **PixMob Discord** (discord.gg/UYqTjC7xp3) — Community research and discussion
+
 
 ---
 
