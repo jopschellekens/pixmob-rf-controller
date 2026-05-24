@@ -1,0 +1,7 @@
+__pycache__/
+*.pyc
+.DS_Store
+*.iq
+*.iq.xz
+/tmp/
+/pixmob_bruteforce_results.txt
