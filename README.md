@@ -567,7 +567,6 @@ A: The bracelet PCB has labelled SDA/SCL pads. An I2C scanner found a device at 
 - **danielweidman/pixmob-ir-reverse-engineering** — Original Flipper Zero IR captures and 6b/8b encoding table
 - **jamesw343/PixMob_IR** — IR protocol documentation and color definitions
 - **jgromes/RadioLib** — CC1101 radio library for ESP32 firmware
-- **PixMob Discord** (discord.gg/UYqTjC7xp3) — Community research and discussion
 - **Arduino I2C sketches** based on standard Wire library examples
 
 ---
