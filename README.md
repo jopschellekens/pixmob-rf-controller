@@ -20,6 +20,7 @@ Control **PixMob Waveband 4 gen2** (868 MHz) wristbands using a **HackRF** SDR o
 - [Experimental Harness](#experimental-harness)
 - [I2C Hardware Probing](#i2c-hardware-probing)
 - [ESP32 Firmware](#esp32-firmware)
+- [Archive / Unused Files](#archive--unused-files)
 - [Research Status](#research-status)
 - [Credits](#credits)
 
@@ -470,6 +471,21 @@ The `arduino/` directory contains Arduino Uno sketches for probing PixMob bracel
 3. **The actual LED driver** — if 0x60 is not the LED controller, the real driver might be on a different address or not accessible via I2C at all (could be a serial or SPI-connected chip).
 
 ---
+
+## Archive / Unused Files
+
+The `archive/` folder contains research scripts from early reverse-engineering that have been superseded:
+
+| File | What it was | Superseded by |
+|------|-------------|---------------|
+| `analyze_rf.py` | First RF decoding hypothesis | `rf_codec.py` |
+| `analyze_rf2.py` | Run-length decoding attempt | `rf_codec.py` |
+| `analyze_rf3.py` | Bit-shift alignment analysis | `rf_codec.py` |
+| `analyze_rf4.py` | Final RF decode prototype | `rf_codec.py` |
+| `crack_checksum.py` | Brute-force checksum formulas | `pixmob_experiment.py` CRC testing |
+| `generate_colors.py` | Color command generation | `pixmob_experiment.py` `generate_color_commands()` |
+
+These are kept for reference but are not used by any active code.
 
 ## ESP32 Firmware
 
