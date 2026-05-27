@@ -1,0 +1,748 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>PixMob</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: #0d0d1a; color: #ddd; min-height: 100vh;
+  }
+  .header {
+    background: #1a1a2e; padding: 8px 12px; display: flex; align-items: center;
+    border-bottom: 1px solid #2a2a4e; gap: 8px;
+  }
+  .header h1 { font-size: 1em; color: #e94560; flex-shrink: 0; }
+  .header .badge {
+    padding: 2px 6px; border-radius: 4px; font-size: 0.65em; white-space: nowrap;
+  }
+  .badge.ok { background: #2ecc71; color: #fff; }
+  .badge.err { background: #e94560; color: #fff; }
+  .badge.unknown { background: #555; color: #ddd; }
+  .header .links { margin-left: auto; font-size: 0.75em; }
+  .header .links a { color: #888; text-decoration: none; }
+
+  .main { padding: 10px; max-width: 800px; margin: 0 auto; }
+
+  .toolbar {
+    display: flex; gap: 6px; align-items: center; flex-wrap: wrap; margin-bottom: 10px;
+  }
+  .toolbar button {
+    padding: 8px 12px; border: none; border-radius: 6px;
+    font-weight: 600; cursor: pointer; font-size: 0.85em;
+  }
+  .btn-wake { background: #f39c12; color: #1a1a2e; }
+  .btn-wake.sending { opacity: 0.5; pointer-events: none; }
+  .btn-stop {
+    padding: 8px 12px; border: none; border-radius: 6px; font-weight: 700; cursor: pointer;
+    font-size: 0.85em; background: #e94560; color: #fff; display: none;
+  }
+  .repeats {
+    display: flex; align-items: center; gap: 4px; flex-wrap: wrap;
+  }
+  .repeats label { font-size: 0.7em; color: #888; }
+  .repeats input[type=range] { width: 60px; accent-color: #e94560; height: 20px; }
+  .repeats .val { font-size: 0.75em; color: #ddd; min-width: 18px; text-align: center; }
+  .loop-toggle {
+    display: flex; align-items: center; gap: 3px; cursor: pointer;
+    font-size: 0.75em; color: #888; user-select: none;
+  }
+  .loop-toggle input { accent-color: #2ecc71; width: 14px; height: 14px; cursor: pointer; }
+  .loop-toggle.active { color: #2ecc71; font-weight: 600; }
+
+  .group { margin-bottom: 12px; }
+  .group-title {
+    font-size: 0.75em; color: #e94560; text-transform: uppercase; letter-spacing: 1px;
+    margin-bottom: 5px; padding-bottom: 3px; border-bottom: 1px solid #2a2a4e;
+  }
+  .cmd-grid {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 5px;
+  }
+  .cmd-btn {
+    padding: 10px 4px; border: 2px solid #333; border-radius: 6px;
+    text-align: center; font-size: 0.72em; font-weight: 600;
+    cursor: pointer; color: #fff; -webkit-tap-highlight-color: transparent;
+  }
+  .cmd-btn:active { transform: scale(0.95); }
+  .cmd-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+  .cmd-btn.sending { opacity: 0.5; pointer-events: none; animation: pulse 0.8s ease-in-out infinite; }
+  @keyframes active-pulse { 0%,100% { box-shadow: 0 0 6px rgba(46,204,113,0.4); } 50% { box-shadow: 0 0 16px rgba(46,204,113,0.9); } }
+  .cmd-btn.active-cmd { border-color: #2ecc71; animation: active-pulse 1s ease-in-out infinite; }
+  .btn-custom {
+    border: 2px dashed #3498db; background: transparent; color: #3498db;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .btn-custom:active { background: #3498db; color: #fff; }
+  .btn-edit-combos {
+    border: 2px dashed #e94560; background: transparent; color: #e94560;
+    display: flex; align-items: center; justify-content: center; font-size: 0.8em;
+  }
+  .btn-edit-combos:active { background: #e94560; color: #fff; }
+
+  .log-box {
+    background: #0d0d1a; border: 1px solid #2a2a4e; border-radius: 6px;
+    padding: 8px; font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.65em;
+    height: 70px; overflow-y: auto; line-height: 1.5; margin-top: 8px;
+  }
+  .log-box .ok { color: #2ecc71; }
+  .log-box .err { color: #e94560; }
+  .log-box .info { color: #888; }
+
+  .modal-overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.7); display: none;
+    align-items: flex-end; z-index: 100;
+  }
+  .modal-overlay.open { display: flex; }
+  .modal {
+    background: #1a1a2e; border: 1px solid #2a2a4e; border-radius: 12px 12px 0 0;
+    width: 100%; max-height: 92vh; display: flex; flex-direction: column;
+  }
+  .modal-header {
+    display: flex; align-items: center; padding: 12px 14px;
+    border-bottom: 1px solid #2a2a4e;
+  }
+  .modal-header h2 { font-size: 0.9em; color: #e94560; flex: 1; }
+  .modal-close { background: none; border: none; color: #888; font-size: 1.2em; cursor: pointer; padding: 4px; }
+  .modal-body { padding: 12px 14px; overflow-y: auto; flex: 1; }
+  .modal-footer {
+    padding: 10px 14px; border-top: 1px solid #2a2a4e; display: flex; gap: 6px;
+  }
+  .modal-footer button {
+    padding: 10px 14px; border: none; border-radius: 6px; font-weight: 600; cursor: pointer; font-size: 0.85em;
+  }
+  .btn-play-seq { background: #2ecc71; color: #fff; flex: 1; }
+  .btn-clear-seq { background: #555; color: #fff; }
+
+  .seq-list { min-height: 80px; }
+  .seq-empty { text-align: center; color: #555; font-size: 0.8em; padding: 20px 0; }
+  .seq-step {
+    display: flex; align-items: center; gap: 6px; padding: 7px 8px;
+    background: #16213e; border-radius: 6px; margin-bottom: 3px; font-size: 0.8em;
+  }
+  .seq-step .num { color: #555; min-width: 18px; font-size: 0.85em; }
+  .seq-step .label { flex: 1; }
+  .seq-step .reps { color: #888; font-size: 0.85em; min-width: 30px; text-align: center; }
+  .seq-step .move { cursor: pointer; color: #888; padding: 0 3px; font-size: 1.1em; }
+  .seq-step .del { cursor: pointer; color: #e94560; font-weight: bold; padding: 0 3px; }
+  .seq-step.active-step { border: 2px solid #2ecc71; background: #1a2e1a; }
+
+  .color-tabs {
+    display: flex; gap: 4px; flex-wrap: wrap; margin-bottom: 8px;
+  }
+  .color-tab {
+    padding: 6px 10px; border: 2px solid #333; border-radius: 6px;
+    text-align: center; font-size: 0.72em; font-weight: 600; cursor: pointer;
+    color: #fff; -webkit-tap-highlight-color: transparent;
+  }
+  .color-tab:active { transform: scale(0.95); }
+  .color-tab.active { border-color: #e94560; box-shadow: 0 0 6px rgba(233,69,96,0.4); }
+
+  .effect-grid-sm {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(90px, 1fr)); gap: 4px;
+    min-height: 40px;
+  }
+  .pick-btn {
+    padding: 8px 4px; border: 2px solid #333; border-radius: 6px;
+    text-align: center; font-size: 0.75em; font-weight: 600; cursor: pointer;
+    color: #fff; -webkit-tap-highlight-color: transparent;
+  }
+  .pick-btn:active { transform: scale(0.95); }
+
+  .saved-list { display: flex; gap: 4px; flex-wrap: wrap; margin-bottom: 8px; min-height: 0; }
+  .saved-list:empty { display: none; }
+  .saved-tag {
+    display: flex; align-items: center; gap: 4px; padding: 4px 8px;
+    background: #16213e; border: 1px solid #2a2a4e; border-radius: 12px;
+    font-size: 0.7em; cursor: pointer;
+  }
+  .saved-tag:hover { border-color: #3498db; }
+  .saved-tag .del-saved { color: #e94560; cursor: pointer; font-weight: bold; padding: 0 2px; }
+  .saved-tag .del-saved:hover { opacity: 0.7; }
+  .btn-save-seq { background: #3498db; color: #fff; }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+  .color-tabs {
+    display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px;
+  }
+  .color-tab {
+    padding: 8px 14px; border: 2px solid #333; border-radius: 6px;
+    text-align: center; font-size: 0.8em; font-weight: 600; cursor: pointer;
+    color: #fff; transition: all 0.1s;
+  }
+  .color-tab:active { transform: scale(0.95); }
+  .color-tab.active { border-color: #e94560; box-shadow: 0 0 8px rgba(233,69,96,0.4); }
+
+  .effect-grid-sm {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 4px;
+    min-height: 60px;
+  }
+  .pick-btn {
+    padding: 10px 4px; border: 2px solid #333; border-radius: 6px;
+    text-align: center; font-size: 0.8em; font-weight: 600; cursor: pointer;
+    color: #fff; transition: transform 0.1s;
+  }
+  .pick-btn:active { transform: scale(0.95); }
+
+  .log-box {
+    background: #0d0d1a; border: 1px solid #2a2a4e; border-radius: 6px;
+    padding: 10px; font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.75em;
+    height: 100px; overflow-y: auto; line-height: 1.6; margin-top: 12px;
+  }
+  .log-box .ok { color: #2ecc71; }
+  .log-box .err { color: #e94560; }
+  .log-box .info { color: #888; }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>PixMob Dashboard</h1>
+  <span id="hackrf-badge" class="badge unknown">HackRF: checking...</span>
+  <div class="links"><a href="/show-creator">Show Creator</a></div>
+</div>
+
+<div class="main">
+  <div class="toolbar">
+    <button class="btn-wake" id="btn-wake">Wake Up (30s)</button>
+    <div class="repeats">
+      <label>Repeats</label>
+      <input type="range" id="repeat-slider" min="1" max="50" value="5">
+      <span class="val" id="repeat-val">5</span>
+      <label style="font-size:0.8em;color:#888">Gap</label>
+      <input type="range" id="gap-slider" min="0.01" max="3" step="0.01" value="0.1">
+      <span class="val" id="gap-val">0.1s</span>
+      <label class="loop-toggle" id="loop-label">
+        <input type="checkbox" id="loop-toggle"> ∞ Loop
+      </label>
+    </div>
+    <button class="btn-stop" id="btn-stop">Stop</button>
+  </div>
+
+  <div id="cmd-groups"></div>
+
+  <div class="log-box" id="log-box"></div>
+</div>
+
+<div class="modal-overlay" id="custom-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <h2>Custom Sequence</h2>
+      <button class="modal-close" id="modal-close">✕</button>
+    </div>
+    <div class="modal-body">
+      <div style="display:flex;gap:8px;margin-bottom:8px">
+        <input type="text" id="seq-name" value="My Sequence" style="flex:1;padding:8px;border:1px solid #333;border-radius:6px;background:#16213e;color:#ddd;font-size:0.9em">
+        <input type="number" id="seq-repeats" value="3" min="1" max="20" style="width:50px;padding:8px;border:1px solid #333;border-radius:6px;background:#16213e;color:#ddd;text-align:center">
+      </div>
+      <div class="seq-list" id="seq-list">
+        <div class="seq-empty">Click commands below to add steps</div>
+      </div>
+      <div class="saved-list" id="saved-list"></div>
+      <div class="color-tabs" id="color-tabs"></div>
+      <div class="effect-grid-sm" id="effect-grid-sm"><div style="color:#555;font-size:0.85em;padding:10px">Select a color above</div></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-clear-seq" id="btn-clear-seq">Clear</button>
+      <button class="btn-play-seq" id="btn-play-seq">▶ Play</button>
+      <button class="btn-save-seq" id="btn-save-seq">Save</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const COMMANDS = {
+  "Gold": {
+    color: "#d4a017",
+    cmds: [
+      {id:"gold_fade", label:"Fade"},
+      {id:"gold_blink", label:"Blink"},
+      {id:"gold_fade_in", label:"Fade In"},
+      {id:"gold_fast_fade", label:"Fast Fade"},
+      {id:"gold_fastfade", label:"Fast Fade 2"},
+    ]
+  },
+  "Red": {
+    color: "#c0392b",
+    cmds: [
+      {id:"red_fade", label:"Fade"},
+      {id:"red_fastblink", label:"Fast Blink"},
+      {id:"red_fastfade", label:"Fast Fade"},
+      {id:"wine_fade_in", label:"Wine (Fade In)"},
+    ]
+  },
+  "Blue": {
+    color: "#2980b9",
+    cmds: [
+      {id:"blue_fade", label:"Fade"},
+    ]
+  },
+  "White": {
+    color: "#7f8c8d",
+    cmds: [
+      {id:"white_fade", label:"Fade"},
+      {id:"white_blink", label:"Blink"},
+      {id:"white_fastfade", label:"Fast Fade"},
+      {id:"white_fastfade2", label:"Fast Fade 2"},
+    ]
+  },
+  "Turquoise": {
+    color: "#1abc9c",
+    cmds: [
+      {id:"turq_blink", label:"Blink"},
+    ]
+  },
+  "Magenta": {
+    color: "#8e44ad",
+    cmds: [
+      {id:"magenta_fade", label:"Fade"},
+    ]
+  },
+  "Effects": {
+    color: "linear-gradient(135deg, #e94560, #8e44ad)",
+    cmds: [
+      {id:"rand_color_blinks", label:"Color Blinks"},
+      {id:"wild_combo", label:"Wild Combo"},
+      {id:"rand_rwb", label:"RWB Fade"},
+      {id:"rand_red_wine", label:"Red/Wine"},
+      {id:"wine_gold_alt_fade", label:"Wine Fade ×3"},
+      {id:"wine_gold_sync_fade", label:"Wine Fade ×5"},
+    ]
+  },
+  "Combos": {
+    color: "linear-gradient(135deg, #f39c12, #e74c3c)",
+    cmds: [
+      {id:"combo_gold_white", label:"Gold+White"},
+      {id:"combo_red_gold", label:"Red+Gold"},
+      {id:"combo_rgb", label:"RGB"},
+      {id:"combo_red_blue", label:"Red+Blue"},
+      {id:"combo_white_red", label:"White+Red"},
+      {id:"combo_rwg", label:"RWG"},
+      {id:"combo_blue_turq", label:"Blue+Turq"},
+      {id:"combo_blue_gold", label:"Blue+Gold"},
+      {id:"combo_blue_wine", label:"Blue+Wine"},
+      {id:"combo_wine_gold", label:"Wine+Gold"},
+      {id:"combo_gold_wine", label:"Gold+Wine"},
+      {id:"combo_white_blue", label:"White+Blue"},
+      {id:"combo_turq_blue", label:"Turq+Blue"},
+      {id:"combo_strobe", label:"Strobe (R+T+W)"},
+    ]
+  },
+};
+
+let busy = false;
+let looping = null;  // {id, label} or null
+
+function log(type, msg) {
+  const box = document.getElementById('log-box');
+  const d = new Date();
+  const t = d.toLocaleTimeString();
+  const el = document.createElement('div');
+  el.className = type;
+  el.textContent = `[${t}] ${msg}`;
+  box.appendChild(el);
+  box.scrollTop = box.scrollHeight;
+}
+
+function highlightCmd(id) {
+  document.querySelectorAll('.cmd-btn.active-cmd').forEach(b => b.classList.remove('active-cmd'));
+  if (id) {
+    const btn = document.querySelector(`.cmd-btn[data-id="${id}"]`);
+    if (btn) btn.classList.add('active-cmd');
+  }
+}
+
+function highlightSeqStep(idx) {
+  document.querySelectorAll('.seq-step.active-step').forEach(s => s.classList.remove('active-step'));
+  if (idx >= 0) {
+    const steps = document.querySelectorAll('.seq-step');
+    if (steps[idx]) steps[idx].classList.add('active-step');
+  }
+}
+
+function getRepeats() {
+  return parseInt(document.getElementById('repeat-slider').value) || 5;
+}
+
+function getGap() {
+  return parseFloat(document.getElementById('gap-slider').value) || 0.3;
+}
+
+function isLooping() {
+  return document.getElementById('loop-toggle').checked;
+}
+
+function doFetch(id, label, repeats) {
+  return fetch('/api/send', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({command: id, repeats})
+  }).then(r => r.json());
+}
+
+function sendCmd(id, label) {
+  if (isLooping()) {
+    toggleLoop(id, label);
+    return;
+  }
+  busy = true;
+  const repeats = getRepeats();
+  highlightCmd(id);
+  log('info', `Sending ${label} x${repeats}...`);
+  doFetch(id, label, repeats)
+    .then(data => {
+      if (data.success) log('ok', `${label} sent`);
+      else log('err', `${label}: ${data.error}`);
+    })
+    .catch(e => log('err', `${label}: ${e.message}`))
+    .finally(() => { busy = false; setTimeout(() => highlightCmd(null), 500); });
+}
+
+function toggleLoop(id, label) {
+  if (looping) {
+    if (looping.id === id) { stopLoop(); return; }
+    stopLoop();
+  }
+  looping = {id, label};
+  document.getElementById('btn-stop').style.display = 'block';
+  const repeats = getRepeats();
+  log('info', `Looping ${label} x${repeats} (click again or Stop to end)`);
+  loopStep(id, label, repeats);
+}
+
+function loopStep(id, label, repeats) {
+  if (!looping || looping.id !== id) return;
+  doFetch(id, label, repeats)
+    .then(data => {
+      if (!looping || looping.id !== id) return;
+      if (data.success) log('ok', `${label} sent`);
+      else log('err', `${label}: ${data.error}`);
+      setTimeout(() => loopStep(id, label, repeats), getGap() * 1000);
+    })
+    .catch(e => {
+      if (!looping || looping.id !== id) return;
+      log('err', `${label}: ${e.message}`);
+      setTimeout(() => loopStep(id, label, repeats), getGap() * 1000);
+    });
+}
+
+function stopLoop() {
+  looping = null;
+  document.getElementById('btn-stop').style.display = 'none';
+  log('info', 'Loop stopped');
+}
+
+// ====================== CUSTOM SEQUENCE BUILDER ======================
+let sequence = [];
+let savedCombos = JSON.parse(localStorage.getItem('pixmob_saved_combos') || '[]');
+
+function openCustom(seq) {
+  sequence = seq ? JSON.parse(JSON.stringify(seq)) : [];
+  document.getElementById('seq-name').value = 'My Sequence';
+  document.getElementById('custom-modal').classList.add('open');
+  renderPickGrid();
+  renderSequence();
+  renderSaved();
+}
+
+function editCombo(id) {
+  const steps = COMBO_STEPS[id];
+  if (!steps) return;
+  sequence = steps.map(s => ({...s, repeats: 3}));
+  const label = COMMANDS.Combos.cmds.find(c => c.id === id)?.label || id;
+  document.getElementById('seq-name').value = label;
+  document.getElementById('custom-modal').classList.add('open');
+  renderPickGrid();
+  renderSequence();
+  renderSaved();
+}
+
+function closeCustom() {
+  document.getElementById('custom-modal').classList.remove('open');
+  highlightSeqStep(-1);
+}
+
+let selectedColor = null;
+
+const COLOR_GROUPS = [
+  {name:"Gold", cmds:[{id:"gold_fade",label:"Fade"},{id:"gold_blink",label:"Blink"},{id:"gold_fade_in",label:"Fade In"}]},
+  {name:"Red", cmds:[{id:"red_fade",label:"Fade"}]},
+  {name:"Blue", cmds:[{id:"blue_fade",label:"Fade"}]},
+  {name:"White", cmds:[{id:"white_fade",label:"Fade"},{id:"white_blink",label:"Blink"}]},
+  {name:"Turquoise", cmds:[{id:"turq_blink",label:"Blink"}]},
+  {name:"Wine", cmds:[{id:"wine_fade_in",label:"Fade In"}]},
+  {name:"Magenta", cmds:[{id:"magenta_fade",label:"Fade"}]},
+  {name:"Combos", cmds:[
+    {id:"combo_gold_white",label:"Gold+White"},{id:"combo_red_gold",label:"Red+Gold"},
+    {id:"combo_rgb",label:"RGB"},{id:"combo_red_blue",label:"Red+Blue"},
+    {id:"combo_white_red",label:"White+Red"},{id:"combo_rwg",label:"RWG"},
+    {id:"combo_blue_turq",label:"Blue+Turq"},{id:"combo_blue_gold",label:"Blue+Gold"},
+    {id:"combo_blue_wine",label:"Blue+Wine"},{id:"combo_wine_gold",label:"Wine+Gold"},
+    {id:"combo_gold_wine",label:"Gold+Wine"},{id:"combo_white_blue",label:"White+Blue"},
+    {id:"combo_turq_blue",label:"Turq+Blue"},{id:"combo_strobe",label:"Strobe (R+T+W)"},
+  ]},
+];
+
+const COLOR_STYLES = {
+  Gold:"#d4a017", Red:"#c0392b", Blue:"#2980b9", White:"#7f8c8d",
+  Turquoise:"#1abc9c", Wine:"#8b2252", Magenta:"#8e44ad", Combos:"#f39c12",
+};
+
+const COMBO_STEPS = {
+  combo_gold_white: [{id:"gold_fade",label:"Gold Fade"},{id:"white_fade",label:"White Fade"},{id:"gold_fade",label:"Gold Fade"},{id:"white_fade",label:"White Fade"}],
+  combo_red_gold:   [{id:"red_fade",label:"Red Fade"},{id:"gold_fade",label:"Gold Fade"},{id:"red_fade",label:"Red Fade"},{id:"gold_fade",label:"Gold Fade"}],
+  combo_rgb:        [{id:"red_fade",label:"Red Fade"},{id:"gold_fade",label:"Gold Fade"},{id:"blue_fade",label:"Blue Fade"},{id:"red_fade",label:"Red Fade"},{id:"gold_fade",label:"Gold Fade"},{id:"blue_fade",label:"Blue Fade"}],
+  combo_red_blue:   [{id:"red_fade",label:"Red Fade"},{id:"blue_fade",label:"Blue Fade"},{id:"red_fade",label:"Red Fade"},{id:"blue_fade",label:"Blue Fade"}],
+  combo_white_red:  [{id:"white_fade",label:"White Fade"},{id:"red_fade",label:"Red Fade"},{id:"white_fade",label:"White Fade"},{id:"red_fade",label:"Red Fade"}],
+  combo_rwg:        [{id:"red_fade",label:"Red Fade"},{id:"white_fade",label:"White Fade"},{id:"gold_fade",label:"Gold Fade"},{id:"red_fade",label:"Red Fade"},{id:"white_fade",label:"White Fade"},{id:"gold_fade",label:"Gold Fade"}],
+  combo_blue_turq:  [{id:"blue_fade",label:"Blue Fade"},{id:"blue_fade",label:"Blue Fade"},{id:"blue_fade",label:"Blue Fade"},{id:"turq_blink",label:"Turq Blink"}],
+  combo_blue_gold:  [{id:"blue_fade",label:"Blue Fade"},{id:"gold_fade",label:"Gold Fade"},{id:"blue_fade",label:"Blue Fade"},{id:"gold_fade",label:"Gold Fade"}],
+  combo_blue_wine:  [{id:"blue_fade",label:"Blue Fade"},{id:"wine_fade_in",label:"Wine Fade"},{id:"blue_fade",label:"Blue Fade"},{id:"wine_fade_in",label:"Wine Fade"}],
+  combo_wine_gold:  [{id:"wine_fade_in",label:"Wine Fade"},{id:"gold_fade",label:"Gold Fade"},{id:"wine_fade_in",label:"Wine Fade"},{id:"gold_fade",label:"Gold Fade"}],
+  combo_gold_wine:  [{id:"gold_fade",label:"Gold Fade"},{id:"wine_fade_in",label:"Wine Fade"},{id:"gold_fade",label:"Gold Fade"},{id:"wine_fade_in",label:"Wine Fade"}],
+  combo_white_blue: [{id:"white_fade",label:"White Fade"},{id:"blue_fade",label:"Blue Fade"},{id:"white_fade",label:"White Fade"},{id:"blue_fade",label:"Blue Fade"}],
+  combo_turq_blue:  [{id:"blue_fade",label:"Blue Fade"},{id:"blue_fade",label:"Blue Fade"},{id:"blue_fade",label:"Blue Fade"},{id:"turq_blink",label:"Turq Blink"}],
+  combo_strobe:     [{id:"red_fade",label:"Red Fade"},{id:"red_fade",label:"Red Fade"},{id:"turq_blink",label:"Turq Blink"},{id:"turq_blink",label:"Turq Blink"},{id:"white_blink",label:"White Blink"},{id:"white_blink",label:"White Blink"},{id:"red_fade",label:"Red Fade"},{id:"red_fade",label:"Red Fade"},{id:"turq_blink",label:"Turq Blink"},{id:"turq_blink",label:"Turq Blink"},{id:"white_blink",label:"White Blink"},{id:"white_blink",label:"White Blink"}],
+};
+
+function renderPickGrid() {
+  const tabs = document.getElementById('color-tabs');
+  tabs.innerHTML = '';
+  COLOR_GROUPS.forEach(g => {
+    const tab = document.createElement('div');
+    tab.className = 'color-tab' + (selectedColor === g.name ? ' active' : '');
+    tab.style.background = COLOR_STYLES[g.name] || '#555';
+    tab.textContent = g.name;
+    tab.onclick = () => { selectedColor = g.name; renderPickGrid(); };
+    tabs.appendChild(tab);
+  });
+  renderEffects();
+}
+
+function renderEffects() {
+  const grid = document.getElementById('effect-grid-sm');
+  grid.innerHTML = '';
+  const group = COLOR_GROUPS.find(g => g.name === selectedColor);
+  if (!group) { grid.innerHTML = '<div style="color:#555;font-size:0.85em;padding:10px">Select a color above</div>'; return; }
+  group.cmds.forEach(cmd => {
+    const btn = document.createElement('div');
+    btn.className = 'pick-btn';
+    btn.style.background = COLOR_STYLES[selectedColor] || '#555';
+    btn.textContent = cmd.label;
+    btn.onclick = () => {
+      const reps = parseInt(document.getElementById('seq-repeats').value) || 3;
+      sequence.push({id: cmd.id, label: `${selectedColor} ${cmd.label}`, repeats: reps});
+      saveSequence();
+      renderSequence();
+    };
+    grid.appendChild(btn);
+  });
+}
+
+function renderSequence() {
+  const list = document.getElementById('seq-list');
+  if (sequence.length === 0) {
+    list.innerHTML = '<div class="seq-empty">Click commands below to add steps</div>';
+    return;
+  }
+  list.innerHTML = '';
+  sequence.forEach((step, i) => {
+    const el = document.createElement('div');
+    el.className = 'seq-step';
+    el.innerHTML = `
+      <span class="num">${i+1}.</span>
+      <span class="label">${step.label}</span>
+      <span class="reps">x${step.repeats}</span>
+      <span class="move" data-dir="-1">▲</span>
+      <span class="move" data-dir="1">▼</span>
+      <span class="del">✕</span>
+    `;
+    el.querySelector('.del').onclick = () => { sequence.splice(i, 1); saveSequence(); renderSequence(); };
+    el.querySelectorAll('.move').forEach(m => {
+      m.onclick = () => {
+        const dir = parseInt(m.dataset.dir);
+        const j = i + dir;
+        if (j < 0 || j >= sequence.length) return;
+        [sequence[i], sequence[j]] = [sequence[j], sequence[i]];
+        saveSequence(); renderSequence();
+      };
+    });
+    list.appendChild(el);
+  });
+}
+
+function saveSequence() {
+  localStorage.setItem('pixmob_temp_sequence', JSON.stringify(sequence));
+}
+
+function renderSaved() {
+  const el = document.getElementById('saved-list');
+  el.innerHTML = '';
+  savedCombos.forEach((c, i) => {
+    const tag = document.createElement('div');
+    tag.className = 'saved-tag';
+    const del = document.createElement('span');
+    del.className = 'del-saved';
+    del.textContent = '✕';
+    del.onclick = (e) => { e.stopPropagation(); savedCombos.splice(i,1); localStorage.setItem('pixmob_saved_combos', JSON.stringify(savedCombos)); renderSaved(); };
+    const name = document.createElement('span');
+    name.textContent = c.name || 'Unnamed';
+    name.onclick = () => {
+      sequence = c.steps.map(s => ({...s}));
+      document.getElementById('seq-name').value = c.name || 'My Sequence';
+      renderSequence();
+    };
+    tag.appendChild(del);
+    tag.appendChild(name);
+    el.appendChild(tag);
+  });
+}
+
+function saveCombo() {
+  const name = document.getElementById('seq-name').value.trim() || 'Unnamed';
+  savedCombos.push({ name, steps: sequence.map(s => ({...s})) });
+  localStorage.setItem('pixmob_saved_combos', JSON.stringify(savedCombos));
+  renderSaved();
+  log('ok', `Sequence "${name}" saved`);
+}
+
+function playSequence() {
+  if (sequence.length === 0) return;
+  const name = document.getElementById('seq-name').value || 'Custom';
+  const total = sequence.length;
+  log('info', `Playing sequence "${name}" (${total} steps)...`);
+  closeCustom();
+  let idx = 0;
+  function next() {
+    if (idx >= sequence.length) {
+      log('ok', `Sequence "${name}" done`);
+      return;
+    }
+    const step = sequence[idx];
+    const reps = step.repeats || 3;
+    highlightCmd(step.id);
+    highlightSeqStep(idx);
+    log('info', `  Step ${idx+1}/${total}: ${step.label} x${reps}`);
+    doFetch(step.id, step.label, reps)
+      .then(data => {
+        if (!data.success) log('err', `  Step ${idx+1} error: ${data.error}`);
+        idx++;
+        setTimeout(() => { highlightCmd(null); highlightSeqStep(-1); }, 300);
+        setTimeout(next, getGap() * 1000);
+      })
+      .catch(e => {
+        log('err', `  Step ${idx+1} error: ${e.message}`);
+        idx++;
+        setTimeout(() => { highlightCmd(null); highlightSeqStep(-1); }, 300);
+        setTimeout(next, getGap() * 1000);
+      });
+  }
+  next();
+}
+
+function render() {
+  const container = document.getElementById('cmd-groups');
+  container.innerHTML = '';
+  for (const [name, group] of Object.entries(COMMANDS)) {
+    const div = document.createElement('div');
+    div.className = 'group';
+    div.innerHTML = `<div class="group-title">${name}</div><div class="cmd-grid"></div>`;
+    const grid = div.querySelector('.cmd-grid');
+    if (name === "Combos") {
+      const customBtn = document.createElement('div');
+      customBtn.className = 'cmd-btn btn-custom';
+      customBtn.textContent = '+ Custom';
+      customBtn.onclick = openCustom;
+      grid.appendChild(customBtn);
+      const editBtn = document.createElement('div');
+      editBtn.className = 'cmd-btn btn-edit-combos';
+      editBtn.textContent = '✎ Edit';
+      editBtn.onclick = () => { openCustom(); };
+      grid.appendChild(editBtn);
+    }
+    group.cmds.forEach(cmd => {
+      const btn = document.createElement('div');
+      btn.className = 'cmd-btn';
+      btn.style.background = group.color;
+      btn.textContent = cmd.label;
+      btn.dataset.id = cmd.id;
+      btn.onclick = () => sendCmd(cmd.id, cmd.label);
+      grid.appendChild(btn);
+    });
+    container.appendChild(div);
+  }
+}
+
+function checkHackrf() {
+  const badge = document.getElementById('hackrf-badge');
+  fetch('/api/hackrf-status')
+    .then(r => r.json())
+    .then(d => {
+      if (d.success) {
+        badge.className = 'badge ok';
+        badge.textContent = `HackRF: OK (${d.info[0] || 'connected'})`;
+      } else {
+        badge.className = 'badge err';
+        badge.textContent = 'HackRF: Not detected';
+      }
+    })
+    .catch(() => {
+      badge.className = 'badge err';
+      badge.textContent = 'HackRF: Error';
+    });
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  render();
+  checkHackrf();
+
+  document.getElementById('repeat-slider').oninput = function() {
+    document.getElementById('repeat-val').textContent = this.value;
+  };
+
+  document.getElementById('gap-slider').oninput = function() {
+    document.getElementById('gap-val').textContent = parseFloat(this.value).toFixed(2) + 's';
+  };
+
+  document.getElementById('loop-toggle').onchange = function() {
+    document.getElementById('loop-label').classList.toggle('active', this.checked);
+    if (!this.checked && looping) stopLoop();
+  };
+
+  document.getElementById('btn-stop').onclick = stopLoop;
+
+  document.getElementById('modal-close').onclick = closeCustom;
+  document.getElementById('custom-modal').onclick = (e) => { if (e.target === e.currentTarget) closeCustom(); };
+  document.getElementById('btn-play-seq').onclick = playSequence;
+  document.getElementById('btn-clear-seq').onclick = () => { sequence = []; saveSequence(); renderSequence(); };
+  document.getElementById('btn-save-seq').onclick = saveCombo;
+
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') closeCustom();
+  });
+
+  document.getElementById('btn-wake').onclick = () => {
+    if (busy) return;
+    busy = true;
+    const btn = document.getElementById('btn-wake');
+    btn.classList.add('sending');
+    log('info', 'Waking bracelet 30s...');
+    fetch('/api/wake', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({seconds: 30})})
+      .then(r => r.json())
+      .then(d => log(d.success ? 'ok' : 'err', d.success ? 'Wake done' : `Wake error: ${d.error}`))
+      .catch(e => log('err', `Wake error: ${e.message}`))
+      .finally(() => { busy = false; btn.classList.remove('sending'); });
+  };
+});
+</script>
+</body>
+</html>

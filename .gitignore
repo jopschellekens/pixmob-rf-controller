@@ -5,3 +5,10 @@ __pycache__/
 *.iq.xz
 /tmp/
 /pixmob_bruteforce_results.txt
+command_durations.txt
+experiment_results.txt
+web/uploads/
+web/shows/
+*.mp3
+*.wav
+*.ogg

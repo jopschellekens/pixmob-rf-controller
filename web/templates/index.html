@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PixMob Show Creator</title>
+  <link rel="stylesheet" href="/static/css/style.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><text y='14' font-size='14'>✨</text></svg>">
+</head>
+<body>
+  <div class="app">
+    <header class="app-header">
+      <h1>✨ PixMob Show Creator</h1>
+      <input type="text" class="show-name-input" id="show-name" value="Untitled Show" placeholder="Show name...">
+      <div class="stats">
+        <span>🎬 <span id="event-count">0</span> events</span>
+        <span>⏱ <span id="show-duration">0:30.00</span></span>
+      </div>
+    </header>
+
+    <div class="toolbar">
+      <button class="btn" id="btn-new">📄 New</button>
+      <button class="btn btn-primary" id="btn-save">💾 Save</button>
+      <button class="btn" id="btn-load">📂 Load</button>
+      <div class="divider"></div>
+      <button class="btn" id="btn-export">📤 Export</button>
+      <div class="divider"></div>
+      <div class="divider"></div>
+      <button class="btn btn-wake active" id="btn-wake-toggle" title="Wake before play: ON">🔔 Wake</button>
+      <button class="btn" id="btn-wake-now" title="Send 30s wake now">🔔 Now</button>
+      <button class="btn btn-primary" id="btn-send-show" title="Send timeline to bands">📡 Send Show</button>
+      <div class="divider"></div>
+      <span id="hackrf-status" class="hackrf-status unknown" title="Checking...">📡 ...</span>
+      <button class="btn btn-play" id="btn-play">▶</button>
+      <button class="btn btn-play" id="btn-stop">⏹</button>
+        <div class="volume-control">
+          <span style="font-size:11px;color:var(--text-secondary)">🔊</span>
+          <input type="range" id="volume-slider" min="0" max="3" step="0.05" value="1">
+          <span id="volume-value" style="font-size:10px;color:var(--text-secondary);width:22px;text-align:right">1</span>
+        </div>
+    </div>
+
+    <div class="main-layout">
+      <aside class="sidebar">
+        <div class="sidebar-header">
+          <span>Commands</span>
+        </div>
+        <div class="sidebar-content" id="command-palette"></div>
+        <div class="sidebar-footer" id="auto-generate-section">
+          <div class="auto-gen-box" id="btn-auto-generate">
+            <div class="auto-gen-icon">🎵</div>
+            <div class="auto-gen-text">
+              <span class="auto-gen-title">Generate Show from Music</span>
+              <span class="auto-gen-sub" id="auto-gen-status">Upload an MP3 to start</span>
+            </div>
+          </div>
+          <div class="auto-gen-box mic-box" id="btn-mic-mode">
+            <div class="auto-gen-icon">🎤</div>
+            <div class="auto-gen-text">
+              <span class="auto-gen-title">Mic Mode (Live)</span>
+              <span class="auto-gen-sub" id="mic-sub-status">Listen & react in real-time</span>
+            </div>
+          </div>
+        </div>
+      </aside>
+
+      <div class="content-area">
+        <div class="timeline-container">
+          <div class="timeline-header">
+            <label>BPM:</label>
+            <input type="number" id="auto-bpm" value="120" min="60" max="200" style="width:50px">
+            <label>Snap</label>
+            <input type="checkbox" id="snap-toggle" checked onchange="snapToGrid=this.checked">
+            <span style="margin-left:auto;font-size:10px;color:var(--text-secondary)">🖱 Drag commands here · Scroll to pan · ⌘+scroll to zoom</span>
+          </div>
+          <div class="timeline-canvas-wrapper">
+            <canvas id="timeline-canvas"></canvas>
+            <div id="waveform-container" class="hidden">
+              <canvas id="waveform-canvas"></canvas>
+            </div>
+          </div>
+          <div class="timeline-scrollbar-area">
+            <div id="timeline-scrollbar"></div>
+          </div>
+        </div>
+
+        <div class="audio-panel">
+          <label class="file-label" for="audio-upload">🎵 Upload Music</label>
+          <input type="file" id="audio-upload" accept="audio/mp3,audio/wav,audio/ogg,audio/mpeg,audio/*">
+          <span class="audio-info" id="audio-info">No audio loaded</span>
+          <span style="margin-left:auto;font-size:10px;color:var(--text-secondary)">
+            Double-click timeline to add event
+          </span>
+        </div>
+      </div>
+
+      <div class="right-panel" id="event-inspector" class="hidden"></div>
+    </div>
+  </div>
+
+  <!-- Show List Modal -->
+  <div class="modal-overlay hidden" id="show-list-modal">
+    <div class="modal">
+      <button class="modal-close" id="btn-close-modal">✕</button>
+      <h2>📂 Saved Shows</h2>
+      <div class="modal-body" id="show-list"></div>
+    </div>
+  </div>
+
+  <!-- Auto-Generate Modal -->
+  <div class="modal-overlay hidden" id="auto-generate-modal">
+    <div class="modal">
+      <button class="modal-close" id="btn-close-auto">✕</button>
+      <h2>🤖 Auto-Generate Show</h2>
+      <div class="modal-body">
+        <div class="auto-detect-info">
+          <div class="auto-detect-row">
+            <span>Detected BPM:</span>
+            <strong id="auto-bpm-display">--</strong>
+          </div>
+          <div class="auto-detect-row">
+            <span>Duration:</span>
+            <strong id="auto-dur-display">--</strong>
+          </div>
+        </div>
+        <label>
+          Style
+          <select id="auto-style">
+            <option value="silence_respect">🎯 Full Analysis (peaks/silence/fades)</option>
+            <option value="energetic">Energetic (beat-synced flashes)</option>
+            <option value="slow_fade">Slow Fades (color transitions)</option>
+            <option value="party">Party Mode (varied effects)</option>
+            <option value="basic">Basic (on every 4th beat)</option>
+          </select>
+        </label>
+        <div class="color-picker">
+          <span class="color-picker-label">Colors:</span>
+          <div class="color-options">
+            <label class="color-option"><input type="checkbox" value="gold" checked><span class="color-swatch" style="background:#FFD700"></span>Gold</label>
+            <label class="color-option"><input type="checkbox" value="red" checked><span class="color-swatch" style="background:#FF4444"></span>Red</label>
+            <label class="color-option"><input type="checkbox" value="blue" checked><span class="color-swatch" style="background:#0066FF"></span>Blue</label>
+            <label class="color-option"><input type="checkbox" value="white" checked><span class="color-swatch" style="background:#CCCCCC"></span>White</label>
+            <label class="color-option"><input type="checkbox" value="turquoise" checked><span class="color-swatch" style="background:#00CED1"></span>Turquoise</label>
+            <label class="color-option"><input type="checkbox" value="wine" checked><span class="color-swatch" style="background:#8B2252"></span>Wine</label>
+            <label class="color-option"><input type="checkbox" value="magenta" checked><span class="color-swatch" style="background:#FF00FF"></span>Magenta</label>
+            <label class="color-option"><input type="checkbox" value="effects" checked><span class="color-swatch" style="background:linear-gradient(90deg,#FF69B4,#9370DB)"></span>Effects</label>
+          </div>
+        </div>
+        <div class="auto-gen-options">
+          <label class="auto-option">
+            <input type="checkbox" id="include-wild-combo" checked>
+            <span class="auto-option-label">Include Long Effects <span class="cmd-duration-hint">(wild combo, random blinks)</span></span>
+          </label>
+        </div>
+        <p class="auto-gen-note">"Full Analysis" maps commands to audio: peaks → flashes, quiet → slow fades, silence → off.</p>
+      </div>
+      <div class="modal-footer">
+        <button class="btn" onclick="document.getElementById('auto-generate-modal').classList.add('hidden')">Cancel</button>
+        <button class="btn btn-primary" onclick="autoGenerateShow()">✨ Generate Show</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Mic Mode Modal -->
+  <div class="modal-overlay hidden" id="mic-modal">
+    <div class="modal">
+      <button class="modal-close" id="btn-close-mic">✕</button>
+      <h2>🎤 Mic Mode</h2>
+      <div class="modal-body">
+        <p class="mic-desc">Listen to microphone input and send live commands to wristbands based on audio energy.</p>
+        <div class="mic-mode-indicator">
+          <span class="mic-mode-label">Mode:</span>
+          <span class="mic-mode-badge" id="mic-mode-badge">AUTO</span>
+          <span class="mic-mode-hint">S=White · A=W+R · W=Red · F=Fade · H=Random · Z-M=Sections · Esc=Auto</span>
+        </div>
+        <div class="mic-meter-container">
+          <div class="mic-meter-label">Energy</div>
+          <div class="mic-meter-track">
+            <div class="mic-meter-fill" id="mic-meter-fill" style="width:0%"></div>
+          </div>
+        </div>
+        <div class="mic-status" id="mic-status">Ready</div>
+        <div class="mic-section-shortcuts">
+          <span class="sec-key">Z</span>=silence
+          <span class="sec-key">X</span>=ambient
+          <span class="sec-key">C</span>=breakdown
+          <span class="sec-key">V</span>=groove
+          <span class="sec-key">B</span>=drive
+          <span class="sec-key">N</span>=buildup
+          <span class="sec-key">M</span>=percussion
+        </div>
+        <div class="mic-controls">
+          <button class="btn btn-primary" id="btn-mic-start">🎤 Start Mic</button>
+          <button class="btn btn-danger hidden" id="btn-mic-stop">⏹ Stop</button>
+        </div>
+        <div class="mic-color-picker">
+          <span class="color-picker-label">Colors:</span>
+          <div class="color-options">
+            <label class="color-option"><input type="checkbox" value="gold" checked><span class="color-swatch" style="background:#FFD700"></span>Gold</label>
+            <label class="color-option"><input type="checkbox" value="red" checked><span class="color-swatch" style="background:#FF4444"></span>Red</label>
+            <label class="color-option"><input type="checkbox" value="blue" checked><span class="color-swatch" style="background:#0066FF"></span>Blue</label>
+            <label class="color-option"><input type="checkbox" value="white" checked><span class="color-swatch" style="background:#CCCCCC"></span>White</label>
+            <label class="color-option"><input type="checkbox" value="turquoise" checked><span class="color-swatch" style="background:#00CED1"></span>Turquoise</label>
+            <label class="color-option"><input type="checkbox" value="wine" checked><span class="color-swatch" style="background:#8B2252"></span>Wine</label>
+            <label class="color-option"><input type="checkbox" value="magenta" checked><span class="color-swatch" style="background:#FF00FF"></span>Magenta</label>
+            <label class="color-option"><input type="checkbox" value="effects" checked><span class="color-swatch" style="background:linear-gradient(90deg,#FF69B4,#9370DB)"></span>Effects</label>
+          </div>
+        </div>
+        <div class="mic-options">
+          <label class="auto-option">
+            <input type="checkbox" id="mic-include-wild-combo" checked>
+            <span class="auto-option-label">Include Long Effects <span class="cmd-duration-hint">(wild combo, random blinks)</span></span>
+          </label>
+        </div>
+        <div class="mic-sensitivity">
+          <label>Sensitivity: <span id="mic-sensitivity-val">0.5</span></label>
+          <input type="range" id="mic-sensitivity" min="0.1" max="1" step="0.05" value="0.5">
+        </div>
+        <div class="mic-debug" id="mic-debug" style="margin-top:10px;font-size:9px;color:var(--text-secondary);font-family:monospace;background:rgba(0,0,0,0.3);padding:6px;border-radius:4px;line-height:1.5;min-height:40px">
+          RMS: — | Energy: — | Bass: — | Flux: — | Centroid: — | ZCR: — | Onsets: — | Mode: —
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast container -->
+  <div id="toast-container"></div>
+
+  <script src="/static/js/commands.js"></script>
+  <script src="/static/js/audio.js"></script>
+  <script src="/static/js/timeline.js"></script>
+  <script src="/static/js/app.js"></script>
+</body>
+</html>

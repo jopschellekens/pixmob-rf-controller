@@ -9,7 +9,7 @@ Usage:
     # Sweep all 64 D8 values (hold D0,D5,D6 fixed):
     python3 bruteforce_d0d8.py --d0 43 --d5 36 --d6 19 --color 51,57,0 --sweep d8
 
-    # Full 4096 sweep (D0 × D8), which may take ~30-60 min:
+    # Full 4096 sweep (D0 x D8), which may take ~30-60 min:
     python3 bruteforce_d0d8.py --d5 36 --d6 36 --color 0,57,0 --sweep both
 
     # Quick: sweep D0 with K-relationship (D8 = D0 + K mod 64):
@@ -23,7 +23,6 @@ import sys
 import os
 import time
 import argparse
-import select
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from rf_codec import encode_payload_to_raw
@@ -33,10 +32,6 @@ RESULTS_FILE = "/tmp/pixmob_bruteforce_results.txt"
 
 
 def get_color_groups():
-    """
-    Return color groups and their estimated K = D8 - D0 mod 64.
-    These are organized by (G,R,B) with known K values.
-    """
     groups = {
         "gold": {
             "color": (51, 57, 0),
@@ -104,41 +99,31 @@ def log_result(d0, d8, g, r, b, d5, d6, tag=""):
         f.write(f"D0={d0} D8={d8} G={g} R={r} B={b} D5={d5} D6={d6} {tag}\n")
 
 
-def wait_for_enter_or_timeout(timeout=0.3):
-    r, _, _ = select.select([sys.stdin], [], [], timeout)
-    if r:
-        sys.stdin.readline()
-        return True
-    return False
+def prompt_mark(d0, d8, g, r, b, d5, d6):
+    """Show status and block until user responds. Returns True if marked."""
+    print(f"\n  D0={d0:2d} D8={d8:2d}  (Enter=mark, s+Enter=skip, Ctrl+C=quit)", end="")
+    sys.stdout.flush()
+    data = sys.stdin.readline().strip().lower()
+    if data == 's':
+        return False
+    print(f"  MARKED: D0={d0} D8={d8} (G={g} R={r} B={b} D5={d5} D6={d6})")
+    log_result(d0, d8, g, r, b, d5, d6, "MARKED")
+    print(f"  Saved to {RESULTS_FILE}")
+    return True
 
 
-def sweep_d0(g, r, b, d5, d6, d8=None, k=None, start=0, end=64, gap=0.3, wake_first=True):
-    """Sweep D0 from start to end, with fixed D8 or D8 = D0+K."""
+def sweep_d0(g, r, b, d5, d6, d8=None, k=None, start=0, end=64):
     if d8 is None and k is None:
         print("ERROR: must provide --d8 or --k for D0 sweep")
         return
 
-    computed = 0
     for d0 in range(start, end):
-        if d8 is not None:
-            cur_d8 = d8
-        else:
-            cur_d8 = (d0 + k) & 0x3F
-
+        cur_d8 = d8 if d8 is not None else (d0 + k) & 0x3F
         payload = build_payload(d0, g, r, b, d5, d6, cur_d8)
         send_payload(payload)
 
-        # Show what we just sent
-        hex_str = ' '.join(f'{b:02x}' for b in [ENCODING_MAP[x & 0x3F] for x in payload])
-        print(f"  D0={d0:2d} D8={cur_d8:2d}: sent", end="\r", flush=True)
-
-        # Check for user input (Enter = mark this one, Ctrl+C = abort)
         try:
-            if wait_for_enter_or_timeout(gap):
-                print(f"\n  ✓ USER MARKED: D0={d0} D8={cur_d8} (G={g} R={r} B={b} D5={d5} D6={d6})")
-                log_result(d0, cur_d8, g, r, b, d5, d6, "USER_MARKED")
-                print(f"  Result saved to {RESULTS_FILE}")
-                # Continue sweep after marking
+            prompt_mark(d0, cur_d8, g, r, b, d5, d6)
         except KeyboardInterrupt:
             print(f"\n  Stopped at D0={d0}")
             return
@@ -146,19 +131,13 @@ def sweep_d0(g, r, b, d5, d6, d8=None, k=None, start=0, end=64, gap=0.3, wake_fi
     print(f"\n  D0 sweep complete ({end-start} values)")
 
 
-def sweep_d8(g, r, b, d5, d6, d0, start=0, end=64, gap=0.3):
-    """Sweep D8 from start to end, with fixed D0."""
+def sweep_d8(g, r, b, d5, d6, d0, start=0, end=64):
     for d8 in range(start, end):
         payload = build_payload(d0, g, r, b, d5, d6, d8)
         send_payload(payload)
 
-        print(f"  D0={d0:2d} D8={d8:2d}: sent", end="\r", flush=True)
-
         try:
-            if wait_for_enter_or_timeout(gap):
-                print(f"\n  ✓ USER MARKED: D0={d0} D8={d8} (G={g} R={r} B={b} D5={d5} D6={d6})")
-                log_result(d0, d8, g, r, b, d5, d6, "USER_MARKED")
-                print(f"  Result saved to {RESULTS_FILE}")
+            prompt_mark(d0, d8, g, r, b, d5, d6)
         except KeyboardInterrupt:
             print(f"\n  Stopped at D8={d8}")
             return
@@ -166,8 +145,7 @@ def sweep_d8(g, r, b, d5, d6, d0, start=0, end=64, gap=0.3):
     print(f"\n  D8 sweep complete ({end-start} values)")
 
 
-def sweep_both(g, r, b, d5, d6, start=0, gap=0.25):
-    """Full D0×D8 sweep (4096 combos)."""
+def sweep_both(g, r, b, d5, d6, start=0):
     total = 64 * 64
     count = 0
     for d0 in range(64):
@@ -180,13 +158,11 @@ def sweep_both(g, r, b, d5, d6, start=0, gap=0.25):
             send_payload(payload)
 
             pct = count * 100 / total
-            print(f"  [{count}/{total} ({pct:.0f}%)] D0={d0:2d} D8={d8:2d}", end="\r", flush=True)
+            print(f"\n  [{count}/{total} ({pct:.0f}%)] D0={d0:2d} D8={d8:2d}", end="")
+            sys.stdout.flush()
 
             try:
-                if wait_for_enter_or_timeout(gap):
-                    print(f"\n  ✓ USER MARKED: D0={d0} D8={d8}")
-                    log_result(d0, d8, g, r, b, d5, d6, "USER_MARKED")
-                    print(f"  Result saved to {RESULTS_FILE}")
+                prompt_mark(d0, d8, g, r, b, d5, d6)
             except KeyboardInterrupt:
                 print(f"\n  Stopped at D0={d0} D8={d8}")
                 print(f"  Resume with: --resume {count}")
@@ -196,7 +172,6 @@ def sweep_both(g, r, b, d5, d6, start=0, gap=0.25):
 
 
 def preset_menu():
-    """Show a menu to pick a known command as starting point for brute force."""
     groups = get_color_groups()
     print("\n  Select a known command as starting point:")
     cmds = []
@@ -204,14 +179,12 @@ def preset_menu():
         for aname, adata in gdata["animations"].items():
             label = f"{gname}_{aname}"
             cmds.append((label, gdata["color"], adata))
-    
-    # Also offer generic "user defined" option
     cmds.append(("custom", None, None))
-    
+
     for i, (label, _, _) in enumerate(cmds, 1):
         print(f"  {i:2d}. {label}")
     print(f"  q. Quit")
-    
+
     try:
         choice = input(f"\n  Pick 1-{len(cmds)} or q: ").strip().lower()
         if choice == "q":
@@ -228,11 +201,11 @@ def preset_menu():
 
 
 def interactive_bruteforce():
-    """Interactive menu for brute-force operations."""
     print("\n" + "=" * 60)
     print("  PixMob D[0]/D[8] BRUTE FORCE TOOL")
-    print("  Hold your bracelet near the HackRF antenna")
-    print("  Press Enter when you see a response (color change)")
+    print("  Place bracelet near the HackRF antenna")
+    print("  Press Enter when you see a color change")
+    print("  Type 's' + Enter to skip (no response)")
     print("=" * 60)
 
     label, color, anim = preset_menu()
@@ -266,7 +239,7 @@ def interactive_bruteforce():
     print(f"\n  Sweep strategy:")
     print(f"  1. Sweep D0 (try all 64 D0 values)")
     print(f"  2. Sweep D8 (try all 64 D8 values)")
-    print(f"  3. Sweep both D0×D8 (all 4096 combos)")
+    print(f"  3. Sweep both D0xD8 (all 4096 combos)")
     print(f"  4. Sweep D0 using K-relationship (D8 = D0+K mod 64)")
 
     try:
@@ -274,11 +247,6 @@ def interactive_bruteforce():
     except (EOFError, KeyboardInterrupt):
         print()
         return
-
-    try:
-        gap = float(input("  Gap between sends in seconds [0.3]: ").strip() or "0.3")
-    except ValueError:
-        gap = 0.3
 
     try:
         wake = input("  Send wake first? (y/n) [y]: ").strip().lower() or "y"
@@ -297,19 +265,19 @@ def interactive_bruteforce():
         if d8_val is None and k_val is None:
             print("  Need D8 or K to sweep D0. Setting D8=0.")
             d8_val = 0
-        sweep_d0(g, r, b, d5, d6, d8=d8_val, k=k_val, gap=gap)
+        sweep_d0(g, r, b, d5, d6, d8=d8_val, k=k_val)
     elif strategy == "2":
         if d0_val is None:
             print("  Need D0 to sweep D8. Setting D0=0.")
             d0_val = 0
-        sweep_d8(g, r, b, d5, d6, d0_val, gap=gap)
+        sweep_d8(g, r, b, d5, d6, d0_val)
     elif strategy == "3":
-        sweep_both(g, r, b, d5, d6, gap=gap)
+        sweep_both(g, r, b, d5, d6)
     elif strategy == "4":
         if k_val is None:
             print("  Need K value. Computing from known or setting to 0.")
             k_val = 0
-        sweep_d0(g, r, b, d5, d6, d8=None, k=k_val, gap=gap)
+        sweep_d0(g, r, b, d5, d6, d8=None, k=k_val)
     else:
         print("  Invalid strategy.")
 
@@ -328,7 +296,6 @@ if __name__ == "__main__":
                         help="What to sweep")
     parser.add_argument("--start", type=int, default=0, help="Starting index")
     parser.add_argument("--end", type=int, default=64, help="Ending index (exclusive)")
-    parser.add_argument("--gap", type=float, default=0.3, help="Gap between sends (seconds)")
     parser.add_argument("--resume", type=int, default=0, help="Resume from count")
     parser.add_argument("--wake", action="store_true", help="Send wake before sweep")
     parser.add_argument("--interactive", "-i", action="store_true", help="Interactive mode")
@@ -339,7 +306,6 @@ if __name__ == "__main__":
         interactive_bruteforce()
         sys.exit(0)
 
-    # Parse color
     if args.color:
         try:
             g, r, b = [int(x) for x in args.color.split(",")]
@@ -350,7 +316,6 @@ if __name__ == "__main__":
         print("ERROR: --color is required")
         sys.exit(1)
 
-    # Wake first if requested
     if args.wake:
         print("Sending wake (30s)...")
         name, label, data = COMMANDS[0]
@@ -361,15 +326,15 @@ if __name__ == "__main__":
 
     if args.sweep == "d0":
         sweep_d0(g, r, b, args.d5, args.d6, d8=args.d8, k=args.k,
-                 start=args.start, end=args.end, gap=args.gap)
+                 start=args.start, end=args.end)
     elif args.sweep == "d8":
         if args.d0 is None:
             print("ERROR: --d0 required for D8 sweep")
             sys.exit(1)
         sweep_d8(g, r, b, args.d5, args.d6, args.d0,
-                 start=args.start, end=args.end, gap=args.gap)
+                 start=args.start, end=args.end)
     elif args.sweep == "both":
-        sweep_both(g, r, b, args.d5, args.d6, start=args.resume, gap=args.gap)
+        sweep_both(g, r, b, args.d5, args.d6, start=args.resume)
     else:
         print("ERROR: unknown sweep type")
         sys.exit(1)

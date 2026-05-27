@@ -961,6 +961,13 @@ CMD_RAND_WHITE_BLINK = [
 
 
 
+class CompositeCmd:
+    """A command composed of multiple sub-commands sent sequentially."""
+    def __init__(self, commands, gap=0.15, sub_repeats=3):
+        self.commands = commands
+        self.gap = gap
+        self.sub_repeats = sub_repeats
+
 # ====================== COMMAND REGISTRY ======================
 COMMANDS = [
     ("nothing", "Wake Up (send for 30s)", CMD_NOTHING),
@@ -979,19 +986,118 @@ COMMANDS = [
     ("white_fastfade2", "White Fast Fade 2", CMD_WHITE_FASTFADE2),
     ("turq_blink", "Turquoise Blink", CMD_TURQ_BLINK),
     ("wine_fade_in", "Wine Fade In", CMD_WINE_FADE_IN),
-    ("rand_color_blinks", "Random Color Blinks", CMD_RAND_COLOR_BLINKS),
-    ("rand_turq_blink", "Random Turquoise Blink", CMD_RAND_TURQ_BLINK),
-    ("rand_red_wine", "Random Red/Wine", CMD_RAND_RED_WINE),
-    ("rand_rwb", "Random Red-White-Blue", CMD_RAND_RWB),
-    ("rand_white_blink", "Random White Blink", CMD_RAND_WHITE_BLINK),
-    ("rand_turq_white_blink", "Random Turquoise/White Blink", CMD_RAND_TURQ_WHITE_BLINK),
+    ("rand_color_blinks", "White/Red/Turq Blinks", CMD_RAND_COLOR_BLINKS),
+    ("rand_turq_blink", "White Fade (alt)", CMD_RAND_TURQ_BLINK),
+    ("rand_red_wine", "Red/Wine Fade", CMD_RAND_RED_WINE),
+    ("rand_rwb", "Red/White/Blue Fade", CMD_RAND_RWB),
+    ("rand_white_blink", "White Blink (×3)", CMD_RAND_WHITE_BLINK),
+    ("rand_turq_white_blink", "White w/ Turq blinks", CompositeCmd([
+        ("white_fade", "White Fade", CMD_WHITE_FADE),
+        ("white_fade", "White Fade", CMD_WHITE_FADE),
+        ("white_fade", "White Fade", CMD_WHITE_FADE),
+        ("turq_blink", "Turquoise Blink", CMD_TURQ_BLINK),
+        ("turq_blink", "Turquoise Blink", CMD_TURQ_BLINK),
+        ("turq_blink", "Turquoise Blink", CMD_TURQ_BLINK),
+    ], gap=0.4, sub_repeats=12)),
     ("wild_combo", "Wild Combo", CMD_WILD_COMBO),
-    ("wine_gold_alt_fade", "Wine/Gold Alternate Fade", CMD_WINE_GOLD_ALT_FADE),
-    ("wine_gold_sync_fade", "Wine/Gold Sync Fade", CMD_WINE_GOLD_SYNC_FADE),
+    ("wine_gold_alt_fade", "Wine Fade In (×3)", CMD_WINE_GOLD_ALT_FADE),
+    ("wine_gold_sync_fade", "Wine Fade In (×5)", CMD_WINE_GOLD_SYNC_FADE),
     ("magenta_fade", "Magenta Fade", CMD_MAGENTA_FADE),
-    ("blue_fade_fromrand", "Blue Fade from Random", CMD_BLUE_FADE_FROMRAND),
-    ("red_fade_fromrand", "Red Fade from Random", CMD_RED_FADE_FROMRAND),
-    ("white_fade_fromrand", "White Fade from Random", CMD_WHITE_FADE_FROMRAND),
+    ("blue_fade_fromrand", "Blue Fade (long)", CMD_BLUE_FADE_FROMRAND),
+    ("red_fade_fromrand", "Red Fade (×4)", CMD_RED_FADE_FROMRAND),
+    ("gold_fade_in_x3", "Gold Fade In (×3)", CMD_WHITE_FADE_FROMRAND),
+
+    # Fade combos (sequential separate transmissions)
+    ("combo_gold_white", "Gold + White (alt)", CompositeCmd([
+        ("gold_fade", "Gold Fade", CMD_GOLD_FADE),
+        ("white_fade", "White Fade", CMD_WHITE_FADE),
+        ("gold_fade", "Gold Fade", CMD_GOLD_FADE),
+        ("white_fade", "White Fade", CMD_WHITE_FADE),
+    ], gap=0.4, sub_repeats=30)),
+    ("combo_red_gold", "Red + Gold (alt)", CompositeCmd([
+        ("red_fade", "Red Fade", CMD_RED_FADE),
+        ("gold_fade", "Gold Fade", CMD_GOLD_FADE),
+        ("red_fade", "Red Fade", CMD_RED_FADE),
+        ("gold_fade", "Gold Fade", CMD_GOLD_FADE),
+    ], gap=0.4, sub_repeats=30)),
+    ("combo_blue_turq", "Blue w/ random Turq blinks", CompositeCmd([
+        ("blue_fade", "Blue Fade", CMD_BLUE_FADE),
+        ("blue_fade", "Blue Fade", CMD_BLUE_FADE),
+        ("blue_fade", "Blue Fade", CMD_BLUE_FADE),
+        ("turq_blink", "Turquoise Blink", CMD_TURQ_BLINK),
+    ], gap=0.4, sub_repeats=12)),
+    ("combo_wine_gold", "Wine + Gold (alt)", CompositeCmd([
+        ("wine_fade_in", "Wine Fade", CMD_WINE_FADE_IN),
+        ("gold_fade", "Gold Fade", CMD_GOLD_FADE),
+        ("wine_fade_in", "Wine Fade", CMD_WINE_FADE_IN),
+        ("gold_fade", "Gold Fade", CMD_GOLD_FADE),
+    ], gap=0.4, sub_repeats=30)),
+    ("combo_rgb", "Red + Gold + Blue (alt)", CompositeCmd([
+        ("red_fade", "Red Fade", CMD_RED_FADE),
+        ("gold_fade", "Gold Fade", CMD_GOLD_FADE),
+        ("blue_fade", "Blue Fade", CMD_BLUE_FADE),
+        ("red_fade", "Red Fade", CMD_RED_FADE),
+        ("gold_fade", "Gold Fade", CMD_GOLD_FADE),
+        ("blue_fade", "Blue Fade", CMD_BLUE_FADE),
+    ], gap=0.4, sub_repeats=30)),
+    ("combo_red_blue", "Red + Blue (alt)", CompositeCmd([
+        ("red_fade", "Red Fade", CMD_RED_FADE),
+        ("blue_fade", "Blue Fade", CMD_BLUE_FADE),
+        ("red_fade", "Red Fade", CMD_RED_FADE),
+        ("blue_fade", "Blue Fade", CMD_BLUE_FADE),
+    ], gap=0.4, sub_repeats=30)),
+    ("combo_white_blue", "White + Blue (alt)", CompositeCmd([
+        ("white_fade", "White Fade", CMD_WHITE_FADE),
+        ("blue_fade", "Blue Fade", CMD_BLUE_FADE),
+        ("white_fade", "White Fade", CMD_WHITE_FADE),
+        ("blue_fade", "Blue Fade", CMD_BLUE_FADE),
+    ], gap=0.4, sub_repeats=30)),
+    ("combo_blue_gold", "Blue + Gold (alt)", CompositeCmd([
+        ("blue_fade", "Blue Fade", CMD_BLUE_FADE),
+        ("gold_fade", "Gold Fade", CMD_GOLD_FADE),
+        ("blue_fade", "Blue Fade", CMD_BLUE_FADE),
+        ("gold_fade", "Gold Fade", CMD_GOLD_FADE),
+    ], gap=0.4, sub_repeats=30)),
+    ("combo_blue_wine", "Blue + Wine (alt)", CompositeCmd([
+        ("blue_fade", "Blue Fade", CMD_BLUE_FADE),
+        ("wine_fade_in", "Wine Fade", CMD_WINE_FADE_IN),
+        ("blue_fade", "Blue Fade", CMD_BLUE_FADE),
+        ("wine_fade_in", "Wine Fade", CMD_WINE_FADE_IN),
+    ], gap=0.4, sub_repeats=30)),
+    ("combo_turq_blue", "Turq blinks + Blue fade", CompositeCmd([
+        ("blue_fade", "Blue Fade", CMD_BLUE_FADE),
+        ("blue_fade", "Blue Fade", CMD_BLUE_FADE),
+        ("blue_fade", "Blue Fade", CMD_BLUE_FADE),
+        ("turq_blink", "Turquoise Blink", CMD_TURQ_BLINK),
+    ], gap=0.4, sub_repeats=12)),
+    ("combo_white_red", "White + Red (alt)", CompositeCmd([
+        ("white_fade", "White Fade", CMD_WHITE_FADE),
+        ("red_fade", "Red Fade", CMD_RED_FADE),
+        ("white_fade", "White Fade", CMD_WHITE_FADE),
+        ("red_fade", "Red Fade", CMD_RED_FADE),
+    ], gap=0.4, sub_repeats=30)),
+    ("combo_gold_wine", "Gold + Wine (alt)", CompositeCmd([
+        ("gold_fade", "Gold Fade", CMD_GOLD_FADE),
+        ("wine_fade_in", "Wine Fade", CMD_WINE_FADE_IN),
+        ("gold_fade", "Gold Fade", CMD_GOLD_FADE),
+        ("wine_fade_in", "Wine Fade", CMD_WINE_FADE_IN),
+    ], gap=0.4, sub_repeats=30)),
+    ("combo_rwg", "Red + White + Gold (alt)", CompositeCmd([
+        ("red_fade", "Red Fade", CMD_RED_FADE),
+        ("white_fade", "White Fade", CMD_WHITE_FADE),
+        ("gold_fade", "Gold Fade", CMD_GOLD_FADE),
+        ("red_fade", "Red Fade", CMD_RED_FADE),
+        ("white_fade", "White Fade", CMD_WHITE_FADE),
+        ("gold_fade", "Gold Fade", CMD_GOLD_FADE),
+    ], gap=0.4, sub_repeats=30)),
+    ("combo_rbg", "Red + Blue + Gold (alt)", CompositeCmd([
+        ("red_fade", "Red Fade", CMD_RED_FADE),
+        ("blue_fade", "Blue Fade", CMD_BLUE_FADE),
+        ("gold_fade", "Gold Fade", CMD_GOLD_FADE),
+        ("red_fade", "Red Fade", CMD_RED_FADE),
+        ("blue_fade", "Blue Fade", CMD_BLUE_FADE),
+        ("gold_fade", "Gold Fade", CMD_GOLD_FADE),
+    ], gap=0.4, sub_repeats=30)),
 
 ]
 
@@ -1260,7 +1366,7 @@ MAPS = {}
 
 def build_maps():
     global MAPS
-    all_cmds = COMMANDS[1:]  # everything except "nothing" (wake)
+    all_cmds = COMMANDS[1:]  # all commands including composites
     
     # All colors
     MAPS["all"] = ("All colors", all_cmds)
@@ -1300,8 +1406,26 @@ def build_maps():
         "magenta_fade",
     ]
     MAPS["proven"] = ("Proven originals", [c for c in all_cmds if c[0] in originals])
+    
+    # Strobe (all blink commands)
+    strobe_cmds = [c for c in all_cmds if "blink" in c[0]]
+    MAPS["strobe"] = ("Strobe", strobe_cmds)
+    
+    # Slow fades (all fade commands excluding fast)
+    slow_cmds = [c for c in all_cmds if "fade" in c[0] and "fast" not in c[0] and "blink" not in c[0]]
+    MAPS["slow"] = ("Slow Fades", slow_cmds)
 
 build_maps()
+
+color_filters = {
+    "Gold": ["gold_"],
+    "Red":   ["red_"],
+    "Blue":  ["blue_"],
+    "White": ["white_"],
+    "Turq":  ["turq_"],
+    "Wine":  ["wine_"],
+    "Magenta": ["magenta_"],
+}
 
 def pick_map():
     """Show map menu and return (map_name, command_list)."""
@@ -1310,10 +1434,49 @@ def pick_map():
     for i, k in enumerate(keys, 1):
         label, cmds = MAPS[k]
         print(f"  {i}. {label} ({len(cmds)})")
+    print(f"  c. Color — pick a color, cycle its commands")
     print(f"  q. Cancel")
     try:
-        choice = input(f"  Pick 1-{len(keys)} or q: ").strip().lower()
+        choice = input(f"  Pick 1-{len(keys)}, c, or q: ").strip().lower()
         if choice == "q":
+            return None, None
+        if choice == "c":
+            color_names = list(color_filters.keys())
+            print("\n  Pick a color (or p for 2-color pair):")
+            for i, name in enumerate(color_names, 1):
+                print(f"  {i}. {name}")
+            print(f"  p. Pick 2 colors")
+            try:
+                raw = input(f"  Pick 1-{len(color_names)}, p: ").strip().lower()
+                if raw == "p":
+                    print("\n  Pick first color:")
+                    for i, name in enumerate(color_names, 1):
+                        print(f"  {i}. {name}")
+                    try:
+                        i1 = int(input(f"  First (1-{len(color_names)}): ").strip()) - 1
+                        if 0 <= i1 < len(color_names):
+                            print(f"\n  Pick second color (got {color_names[i1]}):")
+                            for i, name in enumerate(color_names, 1):
+                                m = " ✓" if i-1 == i1 else ""
+                                print(f"  {i}. {name}{m}")
+                            i2 = int(input(f"  Second (1-{len(color_names)}): ").strip()) - 1
+                            if 0 <= i2 < len(color_names) and i2 != i1:
+                                p1 = color_filters[color_names[i1]]
+                                p2 = color_filters[color_names[i2]]
+                                cmds = [c for c in COMMANDS[1:] if not isinstance(c[2], CompositeCmd) and c[0].startswith(tuple(p1 + p2))]
+                                return (f"{color_names[i1].lower()}_{color_names[i2].lower()}", cmds)
+                    except ValueError:
+                        pass
+                    print("  Invalid.")
+                    return None, None
+                idx = int(raw) - 1
+                if 0 <= idx < len(color_names):
+                    prefix = color_filters[color_names[idx]]
+                    cmds = [c for c in COMMANDS[1:] if not isinstance(c[2], CompositeCmd) and c[0].startswith(tuple(prefix))]
+                    return (color_names[idx].lower(), cmds)
+            except ValueError:
+                pass
+            print("  Invalid.")
             return None, None
         idx = int(choice) - 1
         if 0 <= idx < len(keys):
@@ -1354,7 +1517,7 @@ def wake_and_try_all():
         return
 
     print("\n" + "="*60)
-    print(f"  AUTO-CYCLE — {MAPS[map_name][0]} ({len(cmds)})")
+    print(f"  AUTO-CYCLE — {MAPS.get(map_name, (map_name.replace("_", " ").title(),))[0]} ({len(cmds)})")
     print("="*60)
 
     try:
@@ -1385,8 +1548,11 @@ def wake_and_try_all():
     try:
         for i, (cname, clabel, cdata) in enumerate(cmds, 1):
             print(f"  [{i}/{total}] {clabel}...", end=" ", flush=True)
-            iq8 = generate_iq8(cdata, repeats=reps)
-            transmit(iq8)
+            if isinstance(cdata, CompositeCmd):
+                send_cmd(cname, clabel, cdata, reps)
+            else:
+                iq8 = generate_iq8(cdata, repeats=reps)
+                transmit(iq8)
             time.sleep(1.5)
             print("done")
     except KeyboardInterrupt:
@@ -1402,7 +1568,7 @@ def unfold():
         return
 
     print("\n" + "="*60)
-    print(f"  UNFOLD — {MAPS[map_name][0]} ({len(cmds)})")
+    print(f"  UNFOLD — {MAPS.get(map_name, (map_name.replace("_", " ").title(),))[0]} ({len(cmds)})")
     print("="*60)
 
     try:
@@ -1433,13 +1599,17 @@ def unfold():
         for i, (cname, clabel, cdata) in enumerate(cmds, 1):
             print(f"  [{i}/{total}] {clabel}")
             print("  (Press Enter to advance to next, Ctrl+C to stop)")
-            while True:
-                iq8 = generate_iq8(cdata, repeats=3)
-                transmit(iq8)
-                r, _, _ = select.select([sys.stdin], [], [], gap)
-                if r:
-                    sys.stdin.readline()
-                    break
+            if isinstance(cdata, CompositeCmd):
+                send_cmd(cname, clabel, cdata, 3)
+                input()
+            else:
+                while True:
+                    iq8 = generate_iq8(cdata, repeats=3)
+                    transmit(iq8)
+                    r, _, _ = select.select([sys.stdin], [], [], gap)
+                    if r:
+                        sys.stdin.readline()
+                        break
             print()
     except KeyboardInterrupt:
         print("\n  Stopped.")
@@ -1455,7 +1625,7 @@ def random_color_show():
 
     import random
     print("\n" + "="*60)
-    print(f"  RANDOM SHOW — {MAPS[map_name][0]} ({len(cmds)})")
+    print(f"  RANDOM SHOW — {MAPS.get(map_name, (map_name.replace("_", " ").title(),))[0]} ({len(cmds)})")
     print("="*60)
 
     try:
@@ -1506,8 +1676,11 @@ def random_color_show():
             else:
                 _, _, cdata = current
 
-            iq8 = generate_iq8(cdata, repeats=3)
-            transmit(iq8)
+            if isinstance(cdata, CompositeCmd):
+                send_cmd(cname, clabel, cdata, 3)
+            else:
+                iq8 = generate_iq8(cdata, repeats=3)
+                transmit(iq8)
             r, _, _ = select.select([sys.stdin], [], [], gap)
             if r:
                 sys.stdin.readline()
@@ -1519,6 +1692,24 @@ def random_color_show():
 
 
 def send_cmd(name, label, data, repeats):
+    if isinstance(data, CompositeCmd):
+        try:
+            while True:
+                for sub_name, sub_label, sub_data in data.commands:
+                    iq8 = generate_iq8(sub_data, repeats=data.sub_repeats)
+                    transmit(iq8)
+                    if data.gap > 0:
+                        time.sleep(data.gap)
+                if repeats != 0:
+                    break
+                r, _, _ = select.select([sys.stdin], [], [], 0.15)
+                if r:
+                    sys.stdin.readline()
+                    break
+        except KeyboardInterrupt:
+            print("\n  Stopped.")
+        return
+
     if repeats == 0:
         print(f"Sending '{label}' in hold mode. Repeating until Ctrl+C...")
         try:
