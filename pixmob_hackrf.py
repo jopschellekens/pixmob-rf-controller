@@ -1517,7 +1517,7 @@ def wake_and_try_all():
         return
 
     print("\n" + "="*60)
-    print(f"  AUTO-CYCLE — {MAPS.get(map_name, (map_name.replace("_", " ").title(),))[0]} ({len(cmds)})")
+    print(f"  AUTO-CYCLE — {MAPS.get(map_name, (map_name.replace('_', ' ').title(),))[0]} ({len(cmds)})")
     print("="*60)
 
     try:
@@ -1568,7 +1568,7 @@ def unfold():
         return
 
     print("\n" + "="*60)
-    print(f"  UNFOLD — {MAPS.get(map_name, (map_name.replace("_", " ").title(),))[0]} ({len(cmds)})")
+    print(f"  UNFOLD — {MAPS.get(map_name, (map_name.replace('_', ' ').title(),))[0]} ({len(cmds)})")
     print("="*60)
 
     try:
@@ -1625,7 +1625,7 @@ def random_color_show():
 
     import random
     print("\n" + "="*60)
-    print(f"  RANDOM SHOW — {MAPS.get(map_name, (map_name.replace("_", " ").title(),))[0]} ({len(cmds)})")
+    print(f"  RANDOM SHOW — {MAPS.get(map_name, (map_name.replace('_', ' ').title(),))[0]} ({len(cmds)})")
     print("="*60)
 
     try:
